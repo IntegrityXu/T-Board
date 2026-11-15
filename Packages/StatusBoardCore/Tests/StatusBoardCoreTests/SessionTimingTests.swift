@@ -118,16 +118,16 @@ private final class SessionFixture {
         let key = try request()
         try session.handle(response(key, owner: name))
     }
-    func snapshot(_ unread: Bool, runtime: String = "idle", owner: String = "owner", revision: Int = 7, status: String = "completed") throws {
-        try session.handle(sessionWire(["type": "broadcast", "method": "thread-stream-state-changed", "version": 11,
+    func snapshot(_ unread: Bool, runtime: String = "idle", owner: String = "owner", revision: Int = 7, status: String = "completed", version: Int = 11) throws {
+        try session.handle(sessionWire(["type": "broadcast", "method": "thread-stream-state-changed", "version": version,
             "sourceClientId": owner, "params": ["hostId": "local", "conversationId": id,
                 "change": ["type": "snapshot", "revision": revision, "conversationState": [
                     "id": id, "hostId": "local", "hasUnreadTurn": unread, "requests": [],
                     "threadRuntimeStatus": ["type": runtime, "activeFlags": []],
                     "turns": [["turnId": "R", "status": status]]]]]]))
     }
-    func patch(_ revision: Int, _ patches: [[String: Any]]) throws {
-        try session.handle(sessionWire(["type": "broadcast", "method": "thread-stream-state-changed", "version": 11,
+    func patch(_ revision: Int, _ patches: [[String: Any]], version: Int = 11) throws {
+        try session.handle(sessionWire(["type": "broadcast", "method": "thread-stream-state-changed", "version": version,
             "sourceClientId": "owner", "params": ["hostId": "local", "conversationId": id,
                 "change": ["type": "patches", "baseRevision": revision - 1, "revision": revision, "patches": patches]]]))
     }
@@ -190,13 +190,42 @@ private final class SessionFixture {
     #expect(queue.next(eligible: eligible, pending: ["recent"]) == nil)
 }
 
-@Test func protocolCheckRejectsUnverifiedStreamVersions() throws {
+@Test func protocol13TracksRunningWaitingAndCompletion() throws {
+    let f = try SessionFixture()
+    try f.owner()
+    try f.snapshot(false, runtime: "active", status: "inProgress", version: 13)
+    #expect(f.snapshot.counts?.processing == 1)
+    #expect(f.snapshot.audioEvents.isEmpty)
+    try f.patch(8, [["op": "replace", "path": ["threadRuntimeStatus", "activeFlags"], "value": ["waitingOnApproval"]]], version: 13)
+    #expect(f.snapshot.counts?.waiting == 1)
+    #expect(f.snapshot.counts?.processing == 0)
+    try f.patch(9, [["op": "replace", "path": ["threadRuntimeStatus"], "value": ["type": "idle"]],
+                    ["op": "replace", "path": ["turns", 0, "status"], "value": "completed"],
+                    ["op": "replace", "path": ["hasUnreadTurn"], "value": true]], version: 13)
+    #expect(f.snapshot.counts?.done == 1)
+    #expect(f.snapshot.counts?.waiting == 0)
+    #expect(f.session.streamIssues.isEmpty)
+    #expect(f.publications.snapshots.flatMap(\.audioEvents).map(\.transition.kind) == [.waiting, .completed])
+    // A gap still invalidates the stream and a new baseline recovers silently.
+    try f.patch(11, [], version: 13)
+    #expect(f.session.threads.observations[f.id] == nil)
+    try f.snapshot(false, runtime: "active", revision: 12, status: "inProgress", version: 13)
+    #expect(f.snapshot.counts?.processing == 1)
+    #expect(f.session.streamIssues.isEmpty)
+    #expect(f.snapshot.audioEvents.isEmpty)
+    // Known version numbers must not bypass required status validation.
+    try f.patch(13, [["op": "replace", "path": ["threadRuntimeStatus", "type"], "value": "future-state"]], version: 13)
+    #expect(f.session.threads.observations[f.id] == nil)
+    #expect(f.session.streamIssues.contains(f.id))
+}
+
+@Test(arguments: [12, 14, 99]) func protocolCheckRejectsUnverifiedStreamVersions(version: Int) throws {
     let f = try SessionFixture()
     try f.owner()
     try f.snapshot(false, runtime: "active", status: "inProgress")
     #expect(f.snapshot.counts?.processing == 1)
     do {
-        try f.session.handle(sessionWire(["type": "broadcast", "method": "thread-stream-state-changed", "version": 12,
+        try f.session.handle(sessionWire(["type": "broadcast", "method": "thread-stream-state-changed", "version": version,
             "sourceClientId": "owner", "params": ["hostId": "local", "conversationId": f.id,
                 "change": ["type": "patches", "baseRevision": 7, "revision": 8, "patches": []]]]))
     }

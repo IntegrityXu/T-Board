@@ -56,6 +56,25 @@ private func jsonString(_ text: String) throws -> String {
     #expect(try stream.accept(change: messages[1]["params"]["change"], owner: "O").map(\.kind) == [.completed])
 }
 
+@Test func protocol13TextChangesDoNotBreakMetadataRevisionContinuity() throws {
+    var stream = DesktopStream(conversationID: "T", hostID: "local")
+    let snapshot = metadataEnvelope(metadataSnapshot()).replacingOccurrences(of: "\"version\":11", with: "\"version\":13")
+    let initial = try metadataDecode(snapshot).0
+    #expect(initial["version"].integer == 13)
+    _ = try stream.accept(change: initial["params"]["change"], owner: "O")
+    // v13 can carry text changes alongside an empty metadata patch batch.
+    let textOnly = metadataEnvelope(#"{"type":"patches","baseRevision":1,"revision":2,"patches":[],"acceptedTextChanges":[{"text":"private body"}]}"#)
+        .replacingOccurrences(of: "\"version\":11", with: "\"version\":13")
+    let message = try metadataDecode(textOnly, chunkSize: 7).0
+    #expect(message["params"]["change"]["acceptedTextChanges"] == .null)
+    #expect(try stream.accept(change: message["params"]["change"], owner: "O").isEmpty)
+    #expect(stream.revision == 2)
+    try stream.validateCompatibility()
+    let completion = metadataEnvelope(#"{"type":"patches","baseRevision":2,"revision":3,"patches":[{"op":"replace","path":["turns",0,"status"],"value":"completed"}]}"#)
+        .replacingOccurrences(of: "\"version\":11", with: "\"version\":13")
+    #expect(try stream.accept(change: metadataDecode(completion).0["params"]["change"], owner: "O").map(\.kind) == [.completed])
+}
+
 @Test func streamingLargePatchesWorkWithValueBeforeOrAfterPath() throws {
     var stream = DesktopStream(conversationID: "T", hostID: "local")
     _ = try stream.accept(change: metadataDecode(metadataEnvelope(metadataSnapshot())).0["params"]["change"], owner: "O")

@@ -2,7 +2,7 @@
 
 为 Codex 桌面端设计的原生 macOS 状态面板。在桌面上查看正在处理、等待操作和已完成未读的任务，以及账户可用额度；任务需要关注时，通过短提示音提醒你。
 
-基于 **SwiftUI + AppKit**，支持可拖动的红狐头像、展开面板、置顶和菜单栏入口。当前版本为 **0.2.3 · build 40**，处于个人预览阶段。
+基于 **SwiftUI + AppKit**，支持可拖动的红狐头像、展开面板、置顶和菜单栏入口。当前版本为 **0.2.4 · build 42**，处于个人预览阶段。
 
 > 状态来自当前账户可验证的本地会话。面板显示已同步范围内的数据，不代表整个账户的全部任务；可在 **Info** 中查看同步覆盖率和各项功能的可用性。
 
@@ -25,13 +25,13 @@ Status Board 是独立维护的第三方预览工具，不是 OpenAI 或 Apple �
 
 ## 下载与安装
 
-**[下载 0.2.3 build 40 预览版（macOS 通用 ZIP）](https://github.com/IntegrityXu/T-Board/releases/download/v0.2.3-preview.40/StatusBoard-0.2.3-build40-macOS-universal.zip)** · [发布说明与所有版本](https://github.com/IntegrityXu/T-Board/releases)
+**[下载 0.2.4 build 42 预览版（macOS 通用 ZIP）](https://github.com/IntegrityXu/T-Board/releases/download/v0.2.4-preview.42/StatusBoard-0.2.4-build42-macOS-universal.zip)** · [发布说明与所有版本](https://github.com/IntegrityXu/T-Board/releases)
 
 下载前请阅读上述声明及预览版限制。自 build 39 起，应用包的 `Contents/Resources/Legal/` 随附 MIT 许可证、免责声明、隐私说明、第三方资源声明和安全报告说明；可在 Finder 中右键应用，选择“显示包内容”查看。
 
 下载使用无需 Xcode、Swift 或 Python。需要 **macOS 15.0 及以上**，并已安装、登录且运行 Codex macOS 桌面端。应用包包含 **Intel（x86_64）与 Apple Silicon（arm64）** 两种架构；现有实际运行验证来自 Intel Mac，完整 Apple Silicon 运行验收仍待完成。
 
-1. 下载 `StatusBoard-0.2.3-build40-macOS-universal.zip` 并解压。Releases 中自动生成的 `Source code (zip)` / `Source code (tar.gz)` 是源码，不是可直接运行的应用。
+1. 下载 `StatusBoard-0.2.4-build42-macOS-universal.zip` 并解压。Releases 中自动生成的 `Source code (zip)` / `Source code (tar.gz)` 是源码，不是可直接运行的应用。
 2. 将 `Status Board.app` 拖入“应用程序”（Applications）文件夹，再双击打开。
 3. 首次启动会显示红狐头像；点击头像展开面板。应用以菜单栏程序运行，不显示普通 Dock 图标；找不到面板时，从菜单栏选择 **Show Status Board**。
 
@@ -181,7 +181,7 @@ bash scripts/package-release.sh
 
 也可在 Xcode 中打开 `StatusBoard.xcodeproj`，选择共享的 **StatusBoard** scheme。构建缓存输出到 `.build/`，本地应用包输出到 `dist/`，验证产物输出到 `artifacts/`；这些目录均不提交。
 
-build 40 已通过 **165 项 Swift 测试、185 项原生断言、通用 Release 构建、ZIP 完整性及解压后签名检查**，详见[聊天标题与提示音发布验证](docs/verification/title-sound-build-40.md)。这不代表所有设备、Codex 更新和实际交互场景都已验收。完整进度与已知缺口见[实现与验证索引](docs/verification/results.md)。
+build 42 已通过 **167 项 Swift 测试、通用 Release 构建、ZIP 完整性及解压后签名检查**，并使用实际发布包验证 Codex build 27194 的运行任务检测，详见 [v13 兼容修复验证](docs/verification/protocol-13.md)。原生界面沿用 build 40，其 185 项断言记录见[聊天标题与提示音发布验证](docs/verification/title-sound-build-40.md)。这不代表所有设备、Codex 更新和实际交互场景都已验收。完整进度与已知缺口见[实现与验证索引](docs/verification/results.md)。
 
 ### 目录结构
 
@@ -238,6 +238,8 @@ Status Board 以只读方式观察 Codex：
 | 更新源码后仍是旧版本 | 先退出旧应用，再运行 `./scripts/package-app.sh` 和 `./scripts/run-app.sh` |
 | Xcode 构建失败 | 检查 `xcode-select -p`、`xcodebuild -version` 和 `xcrun swift --version`，确认使用完整 Xcode 及兼容工具链 |
 | 开启 Focus 后仍有声音 | Focus 自动静音尚未实现，请手动开启 Mute Sounds |
+
+build 42 已适配 Codex build 27194 的 v13 实时状态协议，修复更新后显示 Connected · Limited、无法检测运行任务的问题。验证记录见 [v13 兼容修复](docs/verification/protocol-13.md)。
 
 Codex 的版本号用于诊断，不采用固定构建白名单。适配层会检查协议、字段、状态、账户归属和增量连续性；未来的私有协议或语义变化仍可能需要更新适配代码。最初的契约证据来自 Codex builds 21477 和 21828，不能据此保证所有后续版本兼容。
 

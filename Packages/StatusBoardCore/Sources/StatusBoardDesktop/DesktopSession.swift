@@ -234,7 +234,10 @@ final class DesktopSession {
         guard params["hostId"].string == "local",
               let id = params["conversationId"].string, followedIDs.contains(id) else { return }
         guard let sender = message["sourceClientId"].string, threads.owners[id] == sender else { return }
-        guard message["version"].integer == 11 else {
+        // v13 (desktop build 27194) preserves the runtime/snapshot contract;
+        // acceptedTextChanges is text-only and intentionally not projected.
+        // Unknown versions still fail closed, as do invalid required fields.
+        guard let version = message["version"].integer, [11, 13].contains(version) else {
             streamIssues.insert(id)
             log?.record(.stream, event: "unsupported_version_resync", error: DesktopFailure.unsupported,
                         version: message["version"].integer, throttled: true)
